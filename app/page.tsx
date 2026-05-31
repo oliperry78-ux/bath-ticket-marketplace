@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import type { Ticket } from '@/lib/supabase'
 import TicketBrowser from './components/TicketBrowser'
@@ -31,9 +32,20 @@ export default async function HomePage() {
               Bath Ticket Marketplace
             </span>
           </div>
-          <span className="hidden sm:block text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full">
-            University of Bath
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:block text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full">
+              University of Bath
+            </span>
+            <Link
+              href="/sell"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Sell a ticket
+            </Link>
+          </div>
         </div>
       </header>
 
