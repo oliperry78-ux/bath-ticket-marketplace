@@ -6,7 +6,7 @@ import type { Ticket } from '@/lib/supabase'
 const VENUES = ['All', 'Komedia', 'Bridge', 'Labs']
 
 function TicketCard({ ticket }: { ticket: Ticket }) {
-  const formattedDate = new Date(ticket.date).toLocaleDateString('en-GB', {
+  const formattedDate = new Date(ticket.event_date).toLocaleDateString('en-GB', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -19,7 +19,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
       <div className="p-5 flex flex-col gap-3 flex-1">
         <div className="flex items-start justify-between gap-3">
           <h3 className="font-semibold text-gray-900 text-base leading-snug line-clamp-2 flex-1">
-            {ticket.title}
+            {ticket.event_name}
           </h3>
           <span className="shrink-0 text-lg font-bold text-amber-600">
             £{ticket.price.toFixed(2)}
@@ -42,13 +42,15 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
           </span>
         </div>
 
-        {ticket.description && (
-          <p className="text-sm text-gray-500 line-clamp-2">{ticket.description}</p>
-        )}
-
         <div className="mt-auto pt-3 flex items-center justify-between border-t border-gray-100">
-          <span className="text-sm text-gray-400">
-            {ticket.quantity} {ticket.quantity === 1 ? 'ticket' : 'tickets'} left
+          <span
+            className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              ticket.status === 'available'
+                ? 'bg-green-50 text-green-700'
+                : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            {ticket.status}
           </span>
           <button className="text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors">
             View →
@@ -68,9 +70,8 @@ export default function TicketBrowser({ tickets }: { tickets: Ticket[] }) {
       const matchesVenue = activeVenue === 'All' || t.venue === activeVenue
       const matchesSearch =
         search.trim() === '' ||
-        t.title.toLowerCase().includes(search.toLowerCase()) ||
-        t.venue.toLowerCase().includes(search.toLowerCase()) ||
-        (t.description ?? '').toLowerCase().includes(search.toLowerCase())
+        t.event_name.toLowerCase().includes(search.toLowerCase()) ||
+        t.venue.toLowerCase().includes(search.toLowerCase())
       return matchesVenue && matchesSearch
     })
   }, [tickets, search, activeVenue])

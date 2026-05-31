@@ -7,11 +7,12 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey)
 
 export type Ticket = {
   id: string
-  title: string
+  event_name: string
   venue: string
+  event_date: string
   price: number
-  date: string
-  description: string | null
-  quantity: number
+  seller_id: string
+  ticket_image_url: string | null
+  status: string
   created_at: string
 }

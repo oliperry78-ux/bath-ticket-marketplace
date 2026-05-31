@@ -6,7 +6,7 @@ export default async function HomePage() {
   const { data: tickets, error } = await supabase
     .from('tickets')
     .select('*')
-    .order('date', { ascending: true })
+    .order('event_date', { ascending: true })
 
   if (error) {
     console.error('Failed to load tickets:', error.message)
