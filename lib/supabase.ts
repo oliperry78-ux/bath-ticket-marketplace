@@ -13,6 +13,7 @@ export type Ticket = {
   price: number
   seller_id: string
   ticket_image_url: string | null
+  ticket_file_path: string | null
   status: string
   created_at: string
 }
