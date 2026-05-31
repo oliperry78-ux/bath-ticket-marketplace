@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase'
 import type { Ticket } from '@/lib/supabase'
 import TicketBrowser from './components/TicketBrowser'
 
+export const dynamic = 'force-dynamic'
+
 export default async function HomePage() {
   const { data: tickets, error } = await supabase
     .from('tickets')
