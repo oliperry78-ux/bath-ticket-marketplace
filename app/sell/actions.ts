@@ -1,6 +1,6 @@
 'use server'
 
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -12,6 +12,17 @@ export async function createTicket(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const supabase = await createServerSupabaseClient()
+
+  // Verify the caller is authenticated.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'You must be logged in to list a ticket.' }
+  }
+
   const event_name = (formData.get('event_name') as string)?.trim()
   const venue = (formData.get('venue') as string)?.trim()
   const event_date = formData.get('event_date') as string
@@ -32,6 +43,7 @@ export async function createTicket(
     event_date,
     price,
     status: 'available',
+    seller_id: user.id,
   })
 
   if (error) {

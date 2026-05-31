@@ -1,6 +1,6 @@
-import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import type { Ticket } from '@/lib/supabase'
+import Header from './components/Header'
 import TicketBrowser from './components/TicketBrowser'
 
 export const dynamic = 'force-dynamic'
@@ -19,35 +19,7 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-              </svg>
-            </div>
-            <span className="font-bold text-gray-900 text-lg tracking-tight">
-              Bath Ticket Marketplace
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:block text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full">
-              University of Bath
-            </span>
-            <Link
-              href="/sell"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Sell a ticket
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 flex flex-col gap-10">
         {/* Hero */}
