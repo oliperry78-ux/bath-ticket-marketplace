@@ -15,8 +15,8 @@ export async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet, headers) {
           // Write refreshed tokens to both the forwarded request and response.
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value, options)
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
           )
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
