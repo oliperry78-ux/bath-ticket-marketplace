@@ -1,9 +1,19 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import Link from 'next/link'
 import type { Ticket } from '@/lib/supabase'
 
 const VENUES = ['All', 'Komedia', 'Bridge', 'Labs']
+const DATE_FILTERS = ['All', 'Today', 'Tomorrow', 'This Week'] as const
+type DateFilter = (typeof DATE_FILTERS)[number]
+
+function localDateStr(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
 
 function TicketCard({ ticket }: { ticket: Ticket }) {
   const formattedDate = new Date(ticket.event_date).toLocaleDateString('en-GB', {
@@ -42,19 +52,22 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
           </span>
         </div>
 
+        {ticket.seller_email && (
+          <p className="text-xs text-gray-400 truncate">
+            Sold by {ticket.seller_email}
+          </p>
+        )}
+
         <div className="mt-auto pt-3 flex items-center justify-between border-t border-gray-100">
-          <span
-            className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-              ticket.status === 'available'
-                ? 'bg-green-50 text-green-700'
-                : 'bg-gray-100 text-gray-500'
-            }`}
-          >
-            {ticket.status}
+          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700">
+            available
           </span>
-          <button className="text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors">
-            View →
-          </button>
+          <Link
+            href={`/buy/${ticket.id}`}
+            className="text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors"
+          >
+            Buy →
+          </Link>
         </div>
       </div>
     </div>
@@ -64,17 +77,44 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
 export default function TicketBrowser({ tickets }: { tickets: Ticket[] }) {
   const [search, setSearch] = useState('')
   const [activeVenue, setActiveVenue] = useState('All')
+  const [activeDate, setActiveDate] = useState<DateFilter>('All')
 
   const filtered = useMemo(() => {
+    const today = new Date()
+    const todayStr = localDateStr(today)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(today.getDate() + 1)
+    const tomorrowStr = localDateStr(tomorrow)
+    const weekLater = new Date(today)
+    weekLater.setDate(today.getDate() + 7)
+    const weekLaterStr = localDateStr(weekLater)
+
     return tickets.filter((t) => {
       const matchesVenue = activeVenue === 'All' || t.venue === activeVenue
+
       const matchesSearch =
         search.trim() === '' ||
         t.event_name.toLowerCase().includes(search.toLowerCase()) ||
         t.venue.toLowerCase().includes(search.toLowerCase())
-      return matchesVenue && matchesSearch
+
+      const matchesDate =
+        activeDate === 'All' ||
+        (activeDate === 'Today' && t.event_date === todayStr) ||
+        (activeDate === 'Tomorrow' && t.event_date === tomorrowStr) ||
+        (activeDate === 'This Week' &&
+          t.event_date >= todayStr &&
+          t.event_date <= weekLaterStr)
+
+      return matchesVenue && matchesSearch && matchesDate
     })
-  }, [tickets, search, activeVenue])
+  }, [tickets, search, activeVenue, activeDate])
+
+  const filterPillClass = (active: boolean) =>
+    `px-4 py-2 rounded-full text-sm font-medium transition-all duration-150 border ${
+      active
+        ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+        : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300 hover:text-amber-600'
+    }`
 
   return (
     <div className="flex flex-col gap-6">
@@ -103,13 +143,22 @@ export default function TicketBrowser({ tickets }: { tickets: Ticket[] }) {
           <button
             key={venue}
             onClick={() => setActiveVenue(venue)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-150 border ${
-              activeVenue === venue
-                ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300 hover:text-amber-600'
-            }`}
+            className={filterPillClass(activeVenue === venue)}
           >
             {venue}
+          </button>
+        ))}
+      </div>
+
+      {/* Date filters */}
+      <div className="flex flex-wrap gap-2">
+        {DATE_FILTERS.map((df) => (
+          <button
+            key={df}
+            onClick={() => setActiveDate(df)}
+            className={filterPillClass(activeDate === df)}
+          >
+            {df}
           </button>
         ))}
       </div>
@@ -125,7 +174,7 @@ export default function TicketBrowser({ tickets }: { tickets: Ticket[] }) {
           </p>
           {tickets.length > 0 && (
             <button
-              onClick={() => { setSearch(''); setActiveVenue('All') }}
+              onClick={() => { setSearch(''); setActiveVenue('All'); setActiveDate('All') }}
               className="mt-3 text-sm text-amber-500 hover:text-amber-600 underline underline-offset-2"
             >
               Clear filters

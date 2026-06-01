@@ -37,8 +37,12 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect /sell — redirect unauthenticated visitors to login.
-  if (request.nextUrl.pathname.startsWith('/sell') && !user) {
+  // Protect authenticated-only routes.
+  const protectedPrefixes = ['/sell', '/dashboard', '/buy']
+  const isProtected = protectedPrefixes.some((p) =>
+    request.nextUrl.pathname.startsWith(p)
+  )
+  if (isProtected && !user) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(loginUrl)

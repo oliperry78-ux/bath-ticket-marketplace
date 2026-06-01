@@ -31,6 +31,12 @@ export default async function Header() {
                 {user.email}
               </span>
               <Link
+                href="/dashboard"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Dashboard
+              </Link>
+              <Link
                 href="/sell"
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors shadow-sm"
               >

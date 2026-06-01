@@ -74,6 +74,7 @@ export async function createTicket(
     price,
     status: 'available',
     seller_id: user.id,
+    seller_email: user.email,
     ticket_file_path: storagePath,
   })
 

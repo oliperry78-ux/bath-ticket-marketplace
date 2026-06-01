@@ -12,8 +12,19 @@ export type Ticket = {
   event_date: string
   price: number
   seller_id: string
+  seller_email: string | null
   ticket_image_url: string | null
   ticket_file_path: string | null
+  status: string
+  created_at: string
+}
+
+export type Order = {
+  id: string
+  ticket_id: string
+  buyer_id: string
+  seller_id: string
+  purchase_price: number
   status: string
   created_at: string
 }

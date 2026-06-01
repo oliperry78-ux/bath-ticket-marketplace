@@ -6,9 +6,13 @@ import TicketBrowser from './components/TicketBrowser'
 export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
+  const today = new Date().toISOString().split('T')[0]
+
   const { data: tickets, error } = await supabase
     .from('tickets')
     .select('*')
+    .eq('status', 'available')
+    .gte('event_date', today)
     .order('event_date', { ascending: true })
 
   if (error) {
@@ -22,7 +26,6 @@ export default async function HomePage() {
       <Header />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 flex flex-col gap-10">
-        {/* Hero */}
         <section className="text-center flex flex-col items-center gap-3">
           <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
             Find tickets. <span className="text-amber-500">Sell tickets.</span>
@@ -32,7 +35,6 @@ export default async function HomePage() {
           </p>
         </section>
 
-        {/* Ticket browser with search + filters */}
         <section>
           <TicketBrowser tickets={safeTickets} />
         </section>
