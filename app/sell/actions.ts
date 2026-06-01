@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { validateTicketFile } from '@/lib/ticket-validation'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -25,7 +26,7 @@ export async function createTicket(
     return { error: 'You must be logged in to list a ticket.' }
   }
 
-  // --- Validate text fields ---
+  // ── Validate text fields ──────────────────────────────────────────────────
   const event_name = (formData.get('event_name') as string)?.trim()
   const venue = (formData.get('venue') as string)?.trim()
   const event_date = formData.get('event_date') as string
@@ -40,7 +41,7 @@ export async function createTicket(
     return { error: 'Price must be a valid positive number.' }
   }
 
-  // --- Validate file ---
+  // ── Validate file type and size ───────────────────────────────────────────
   const file = formData.get('ticket_file') as File | null
 
   if (!file || file.size === 0) {
@@ -53,7 +54,37 @@ export async function createTicket(
     return { error: 'File must be smaller than 10 MB.' }
   }
 
-  // --- Upload file to Storage ---
+  // ── Validate ticket content (QR + text) BEFORE any upload ─────────────────
+  // Reading the buffer here means we reject invalid tickets without touching
+  // storage, avoiding orphaned files and unnecessary upload bandwidth.
+  const fileBuffer = Buffer.from(await file.arrayBuffer())
+
+  const validation = await validateTicketFile(
+    fileBuffer,
+    file.type,
+    event_name,
+    venue,
+    event_date,
+  )
+
+  if ('error' in validation) {
+    return { error: validation.error }
+  }
+
+  // ── Duplicate detection ───────────────────────────────────────────────────
+  // The unique index on ticket_qr_hash prevents the DB insert from succeeding
+  // for a duplicate, but we check here first to give a friendly error message.
+  const { data: duplicate } = await supabase
+    .from('tickets')
+    .select('id')
+    .eq('ticket_qr_hash', validation.ticketQrHash)
+    .maybeSingle()
+
+  if (duplicate) {
+    return { error: 'This ticket has already been listed.' }
+  }
+
+  // ── Upload file to Storage ────────────────────────────────────────────────
   const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
   const uniqueName = `${crypto.randomUUID()}.${ext}`
   const storagePath = `${user.id}/${uniqueName}`
@@ -66,7 +97,7 @@ export async function createTicket(
     return { error: `Could not upload file: ${uploadError.message}` }
   }
 
-  // --- Insert ticket row ---
+  // ── Insert ticket row ─────────────────────────────────────────────────────
   const { error: dbError } = await supabase.from('tickets').insert({
     event_name,
     venue,
@@ -76,6 +107,9 @@ export async function createTicket(
     seller_id: user.id,
     seller_email: user.email,
     ticket_file_path: storagePath,
+    ticket_qr_hash: validation.ticketQrHash,
+    validation_status: validation.validationStatus,
+    validation_notes: validation.validationNotes,
   })
 
   if (dbError) {

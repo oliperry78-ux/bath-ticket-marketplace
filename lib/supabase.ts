@@ -15,6 +15,9 @@ export type Ticket = {
   seller_email: string | null
   ticket_image_url: string | null
   ticket_file_path: string | null
+  ticket_qr_hash: string | null
+  validation_status: string | null
+  validation_notes: string | null
   status: string
   created_at: string
 }

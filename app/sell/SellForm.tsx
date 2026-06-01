@@ -134,7 +134,7 @@ export default function SellForm() {
         disabled={pending}
         className="mt-2 w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors shadow-sm"
       >
-        {pending ? 'Uploading and listing…' : 'List ticket'}
+        {pending ? 'Validating and uploading…' : 'List ticket'}
       </button>
     </form>
   )
