@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import Link from 'next/link'
 import type { Ticket } from '@/lib/supabase'
 import { markSold, deleteTicket, type ActionState } from './actions'
 
@@ -10,6 +11,25 @@ const STATUS_STYLES: Record<string, string> = {
   available: 'bg-green-50 text-green-700',
   reserved: 'bg-blue-50 text-blue-700',
   sold: 'bg-gray-100 text-gray-500',
+}
+
+function FileCell({ ticket }: { ticket: Ticket }) {
+  if (ticket.ticket_file_path) {
+    return (
+      <Link
+        href={`/api/ticket-file/${ticket.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700 hover:underline transition-colors"
+      >
+        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+        </svg>
+        View file
+      </Link>
+    )
+  }
+  return <span className="text-xs text-gray-400">No file</span>
 }
 
 function RowActions({ ticket }: { ticket: Ticket }) {
@@ -88,6 +108,9 @@ export default function TicketTable({ tickets }: { tickets: Ticket[] }) {
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[t.status] ?? 'bg-gray-100 text-gray-500'}`}>
                 {t.status}
               </span>
+              <FileCell ticket={t} />
+            </div>
+            <div className="flex justify-end">
               <RowActions ticket={t} />
             </div>
           </div>
@@ -99,7 +122,7 @@ export default function TicketTable({ tickets }: { tickets: Ticket[] }) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              {['Event', 'Venue', 'Date', 'Price', 'Status', 'Listed', 'Actions'].map((h) => (
+              {['Event', 'Venue', 'Date', 'Price', 'Status', 'Listed', 'File', 'Actions'].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
                   {h}
                 </th>
@@ -122,6 +145,9 @@ export default function TicketTable({ tickets }: { tickets: Ticket[] }) {
                 </td>
                 <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                   {new Date(t.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                </td>
+                <td className="px-4 py-3">
+                  <FileCell ticket={t} />
                 </td>
                 <td className="px-4 py-3">
                   <RowActions ticket={t} />
