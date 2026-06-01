@@ -27,12 +27,19 @@ export default async function ConfirmedPage({
 
   if (!order) redirect('/')
 
-  const ticket = order.tickets as {
+  type TicketRow = {
     event_name: string
     venue: string
     event_date: string
     seller_email: string | null
-  } | null
+  }
+
+  // Supabase infers joined relations as arrays; normalise to a single object.
+  const ticketsRaw = order.tickets
+  const ticket: TicketRow | null =
+    Array.isArray(ticketsRaw)
+      ? (ticketsRaw[0] as TicketRow) ?? null
+      : (ticketsRaw as TicketRow | null)
 
   const formattedDate = ticket
     ? new Date(ticket.event_date).toLocaleDateString('en-GB', {
