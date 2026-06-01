@@ -13,15 +13,27 @@ export default async function DashboardPage() {
 
   if (!user) redirect('/login?next=/dashboard')
 
-  const { data: tickets, error } = await supabase
-    .from('tickets')
-    .select('*')
-    .eq('seller_id', user.id)
-    .order('created_at', { ascending: false })
+  const [{ data: tickets, error }, { data: reservations }] = await Promise.all([
+    supabase
+      .from('tickets')
+      .select('*')
+      .eq('seller_id', user.id)
+      .order('created_at', { ascending: false }),
+    // SECURITY DEFINER function — joins orders → auth.users to get the buyer
+    // email for each pending reservation owned by this seller. auth.users is not
+    // in the public schema so PostgREST cannot join it directly; the function
+    // handles that internally while enforcing auth.uid() = seller_id.
+    supabase.rpc('get_seller_reservations'),
+  ])
 
   if (error) console.error('Dashboard fetch error:', error.message)
 
   const safeTickets: Ticket[] = tickets ?? []
+
+  type ReservationRow = { ticket_id: string; buyer_email: string }
+  const buyerEmails: Record<string, string> = Object.fromEntries(
+    ((reservations as ReservationRow[] | null) ?? []).map((r) => [r.ticket_id, r.buyer_email]),
+  )
   const counts = {
     available: safeTickets.filter((t) => t.status === 'available').length,
     reserved: safeTickets.filter((t) => t.status === 'reserved').length,
@@ -67,7 +79,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Ticket table */}
-        <TicketTable tickets={safeTickets} />
+        <TicketTable tickets={safeTickets} buyerEmails={buyerEmails} />
       </main>
     </div>
   )

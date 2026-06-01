@@ -77,7 +77,34 @@ function RowActions({ ticket }: { ticket: Ticket }) {
   )
 }
 
-export default function TicketTable({ tickets }: { tickets: Ticket[] }) {
+function StatusCell({
+  ticket,
+  buyerEmails,
+}: {
+  ticket: Ticket
+  buyerEmails: Record<string, string>
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className={`text-xs font-medium px-2 py-0.5 rounded-full self-start ${STATUS_STYLES[ticket.status] ?? 'bg-gray-100 text-gray-500'}`}>
+        {ticket.status}
+      </span>
+      {ticket.status === 'reserved' && (
+        <span className="text-xs text-gray-500 truncate max-w-[180px]">
+          {buyerEmails[ticket.id] ?? 'Reserved — buyer unknown'}
+        </span>
+      )}
+    </div>
+  )
+}
+
+export default function TicketTable({
+  tickets,
+  buyerEmails,
+}: {
+  tickets: Ticket[]
+  buyerEmails: Record<string, string>
+}) {
   if (tickets.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -104,10 +131,8 @@ export default function TicketTable({ tickets }: { tickets: Ticket[] }) {
               <span>{new Date(t.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
               <span>{new Date(t.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[t.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                {t.status}
-              </span>
+            <div className="flex items-center justify-between gap-2">
+              <StatusCell ticket={t} buyerEmails={buyerEmails} />
               <FileCell ticket={t} />
             </div>
             <div className="flex justify-end">
@@ -139,9 +164,7 @@ export default function TicketTable({ tickets }: { tickets: Ticket[] }) {
                 </td>
                 <td className="px-4 py-3 font-semibold text-amber-600 whitespace-nowrap">£{t.price.toFixed(2)}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[t.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                    {t.status}
-                  </span>
+                  <StatusCell ticket={t} buyerEmails={buyerEmails} />
                 </td>
                 <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                   {new Date(t.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
