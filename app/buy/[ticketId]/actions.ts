@@ -17,45 +17,19 @@ export async function reserveTicket(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'You must be logged in to reserve a ticket.' }
 
-  // --- Attempt to atomically claim the ticket ---
-  // The UPDATE only succeeds if:
-  //   • status = 'available'  (USING condition in RLS)
-  //   • seller_id != buyer    (prevents self-purchase at DB level)
-  //   • new status = 'reserved' (WITH CHECK in RLS)
-  const { data: updated, error: updateError } = await supabase
-    .from('tickets')
-    .update({ status: 'reserved' })
-    .eq('id', ticketId)
-    .eq('status', 'available')
-    .neq('seller_id', user.id)
-    .select('id, price, seller_id')
-
-  if (updateError) return { error: updateError.message }
-
-  if (!updated || updated.length === 0) {
-    return { error: 'This ticket is no longer available, or you cannot reserve your own listing.' }
-  }
-
-  const ticket = updated[0]
-
-  // --- Create order record ---
-  const { error: orderError } = await supabase.from('orders').insert({
-    ticket_id: ticketId,
-    buyer_id: user.id,
-    seller_id: ticket.seller_id,
-    purchase_price: ticket.price,
-    status: 'pending',
+  // Delegate the entire reservation to a SECURITY DEFINER Postgres function.
+  // This avoids the buyer needing direct UPDATE access on the tickets table
+  // (which triggers RLS policy conflicts), while keeping RLS fully enabled.
+  // The function acquires a row-level lock, validates auth.uid() server-side,
+  // updates the ticket status, and inserts the order — all atomically.
+  const { data: result, error: rpcError } = await supabase.rpc('reserve_ticket', {
+    p_ticket_id: ticketId,
   })
 
-  if (orderError) {
-    // Best-effort rollback: revert ticket status so it can be reserved again.
-    await supabase
-      .from('tickets')
-      .update({ status: 'available' })
-      .eq('id', ticketId)
-      .eq('seller_id', ticket.seller_id)
-    return { error: `Reservation failed: ${orderError.message}` }
-  }
+  if (rpcError) return { error: rpcError.message }
+
+  const rpcResult = result as { error?: string; success?: boolean } | null
+  if (rpcResult?.error) return { error: rpcResult.error }
 
   revalidatePath('/')
   revalidatePath('/dashboard')
