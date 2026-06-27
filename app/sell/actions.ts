@@ -59,13 +59,7 @@ export async function createTicket(
   // storage, avoiding orphaned files and unnecessary upload bandwidth.
   const fileBuffer = Buffer.from(await file.arrayBuffer())
 
-  const validation = await validateTicketFile(
-    fileBuffer,
-    file.type,
-    event_name,
-    venue,
-    event_date,
-  )
+  const validation = await validateTicketFile(fileBuffer, file.type)
 
   if ('error' in validation) {
     return { error: validation.error }
