@@ -16,7 +16,7 @@
 -- to Supabase Auth accounts.
 
 CREATE TABLE IF NOT EXISTS public.profiles (
-  id         uuid PRIMARY KEY REFERENCES auth.users(id),
+  id         uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email      text,
   created_at timestamp with time zone DEFAULT now()
 );

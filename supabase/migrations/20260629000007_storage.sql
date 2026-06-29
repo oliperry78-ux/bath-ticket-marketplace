@@ -26,8 +26,14 @@
 -- Signed URLs are generated server-side by the application for
 -- authorized access (see app/api/ticket-file/[ticketId]/route.ts).
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('ticket-files', 'ticket-files', false)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'ticket-files',
+  'ticket-files',
+  false,
+  10485760,                                              -- 10 MB
+  ARRAY['application/pdf', 'image/png', 'image/jpeg']
+)
 ON CONFLICT (id) DO NOTHING;
 
 
