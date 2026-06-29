@@ -109,6 +109,9 @@ export async function createTicket(
   if (dbError) {
     // Roll back the storage upload so orphaned files don't accumulate.
     await supabase.storage.from('ticket-files').remove([storagePath])
+    if (dbError.code === '23505') {
+      return { error: 'This ticket has already been listed.' }
+    }
     return { error: `Could not list ticket: ${dbError.message}` }
   }
 
