@@ -113,54 +113,110 @@ async function extractQRFromImage(buffer: Buffer): Promise<string | null> {
 // QR extraction — PDFs (via embedded page images)
 // ────────────────────────────────────────────────────────────────────────────
 
-async function extractQRFromPdf(buffer: Buffer): Promise<string | null> {
-  try {
-    const { PDFParse } = await import('pdf-parse')
-    const parser = new PDFParse({ data: new Uint8Array(buffer) })
-    const imageResult = await parser.getImage()
-    await parser.destroy()
+// [DEBUG] Temporary Vercel diagnostics — remove before next commit.
+const dbg = (msg: string) => console.log(`[PDF-QR-DEBUG] ${msg}`)
+const dbgErr = (label: string, err: unknown) =>
+  dbg(`${label}: ${err instanceof Error ? err.message : String(err)}`)
 
-    for (const page of imageResult.pages) {
-      for (const img of page.images) {
-        const qr = await tryQRFromEmbeddedImage(img)
-        if (qr) return qr
-      }
-    }
-  } catch {
-    // PDF had no extractable embedded images (e.g. purely vector).
+async function extractQRFromPdf(buffer: Buffer): Promise<string | null> {
+  dbg(`extractQRFromPdf entered — buffer ${buffer.length} bytes`)
+
+  // ── Dynamic import ──────────────────────────────────────────────────────────
+  let PDFParse: { new (opts: { data: Uint8Array }): { getImage(): Promise<{ pages: { images: EmbeddedImage[] }[] }>; destroy(): Promise<void> } }
+  try {
+    const mod = await import('pdf-parse')
+    PDFParse = mod.PDFParse
+    dbg('import(pdf-parse) succeeded')
+  } catch (err) {
+    dbgErr('import(pdf-parse) FAILED', err)
+    return null
   }
+
+  // ── Parser + getImage ───────────────────────────────────────────────────────
+  let imageResult: { pages: { images: EmbeddedImage[] }[] }
+  try {
+    const parser = new PDFParse({ data: new Uint8Array(buffer) })
+    imageResult = await parser.getImage()
+    await parser.destroy()
+    dbg(`getImage() succeeded — ${imageResult.pages.length} page(s)`)
+  } catch (err) {
+    dbgErr('getImage() FAILED', err)
+    return null
+  }
+
+  // ── Image inventory ─────────────────────────────────────────────────────────
+  const totalImages = imageResult.pages.reduce((n, p) => n + p.images.length, 0)
+  dbg(`Total embedded images across all pages: ${totalImages}`)
+  if (totalImages === 0) {
+    dbg('No embedded images — returning null')
+    return null
+  }
+
+  // ── Per-image scan ──────────────────────────────────────────────────────────
+  for (let pi = 0; pi < imageResult.pages.length; pi++) {
+    const page = imageResult.pages[pi]
+    for (let ii = 0; ii < page.images.length; ii++) {
+      const img = page.images[ii]
+      dbg(
+        `Image [p${pi + 1}/i${ii + 1}]: ` +
+        `${img.width}×${img.height} kind=${img.kind} bytes=${img.data.length} ` +
+        `(expected RGBA=${img.width * img.height * 4} RGB=${img.width * img.height * 3})`,
+      )
+      const qr = await tryQRFromEmbeddedImage(img, pi + 1, ii + 1)
+      if (qr) {
+        dbg(`QR found at [p${pi + 1}/i${ii + 1}] — payload length ${qr.length}`)
+        return qr
+      }
+      dbg(`Image [p${pi + 1}/i${ii + 1}]: no QR`)
+    }
+  }
+
+  dbg('All images exhausted — returning null')
   return null
 }
 
-async function tryQRFromEmbeddedImage(img: EmbeddedImage): Promise<string | null> {
-  const runJsQR = (raw: Uint8Array | Buffer, w: number, h: number) => {
-    const code = jsQR(new Uint8ClampedArray(raw), w, h, {
-      inversionAttempts: 'attemptBoth',
-    })
+async function tryQRFromEmbeddedImage(
+  img: EmbeddedImage,
+  pageNum: number,
+  imgNum: number,
+): Promise<string | null> {
+  const tag = `[p${pageNum}/i${imgNum}]`
+
+  const runJsQR = (raw: Uint8Array | Buffer, w: number, h: number, label: string) => {
+    const code = jsQR(new Uint8ClampedArray(raw), w, h, { inversionAttempts: 'attemptBoth' })
+    dbg(`  ${tag} jsQR(${label}): ${code?.data ? 'HIT' : 'null'}`)
     return code?.data ?? null
   }
 
-  // Attempt 1: treat as compressed JPEG/PNG stream (most common for scanned pages).
+  // Attempt 1: compressed JPEG/PNG stream.
   try {
     const { data, info } = await sharp(Buffer.from(img.data))
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true })
-    const qr = runJsQR(data, info.width, info.height)
+    dbg(`  ${tag} Attempt 1 (sharp): decoded ${info.width}×${info.height} ch=${info.channels}`)
+    const qr = runJsQR(data, info.width, info.height, 'sharp')
     if (qr) return qr
-  } catch {
-    // Not a compressed stream — fall through to raw pixel modes.
+  } catch (err) {
+    dbgErr(`  ${tag} Attempt 1 (sharp) FAILED`, err)
   }
 
-  // Attempt 2: raw RGBA (4 bytes/pixel).
-  if (img.kind === 3 && img.data.length === img.width * img.height * 4) {
+  // Attempt 2: raw RGBA.
+  const eligibleRGBA = img.kind === 3 && img.data.length === img.width * img.height * 4
+  dbg(`  ${tag} Attempt 2 (raw RGBA): eligible=${eligibleRGBA}`)
+  if (eligibleRGBA) {
     try {
-      return runJsQR(img.data, img.width, img.height)
-    } catch {}
+      const qr = runJsQR(img.data, img.width, img.height, 'raw-RGBA')
+      if (qr) return qr
+    } catch (err) {
+      dbgErr(`  ${tag} Attempt 2 FAILED`, err)
+    }
   }
 
-  // Attempt 3: raw RGB (3 bytes/pixel) → pad alpha channel.
-  if (img.kind === 2 && img.data.length === img.width * img.height * 3) {
+  // Attempt 3: raw RGB → RGBA.
+  const eligibleRGB = img.kind === 2 && img.data.length === img.width * img.height * 3
+  dbg(`  ${tag} Attempt 3 (raw RGB→RGBA): eligible=${eligibleRGB}`)
+  if (eligibleRGB) {
     try {
       const rgba = await sharp(Buffer.from(img.data), {
         raw: { width: img.width, height: img.height, channels: 3 },
@@ -168,8 +224,11 @@ async function tryQRFromEmbeddedImage(img: EmbeddedImage): Promise<string | null
         .ensureAlpha()
         .raw()
         .toBuffer()
-      return runJsQR(rgba, img.width, img.height)
-    } catch {}
+      const qr = runJsQR(rgba, img.width, img.height, 'raw-RGB->RGBA')
+      if (qr) return qr
+    } catch (err) {
+      dbgErr(`  ${tag} Attempt 3 FAILED`, err)
+    }
   }
 
   return null
