@@ -57,8 +57,9 @@ export async function validateTicketFile(
 
   if (!qrData) {
     return {
-      error:
-        'No readable QR code found. Please upload a clearer ticket screenshot or PDF.',
+      error: isPdf
+        ? 'We couldn\'t read the QR code from this PDF. Please upload a screenshot (PNG or JPG) of the ticket instead. Screenshot uploads use the same verification process and usually work immediately.'
+        : 'No readable QR code found. Please upload a clearer ticket screenshot.',
     }
   }
 
