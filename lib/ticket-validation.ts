@@ -10,6 +10,14 @@
  */
 
 import { createHash } from 'node:crypto'
+import {
+  BarcodeFormat,
+  BinaryBitmap,
+  DecodeHintType,
+  HybridBinarizer,
+  MultiFormatReader,
+  RGBLuminanceSource,
+} from '@zxing/library'
 import jsQR from 'jsqr'
 import sharp from 'sharp'
 
@@ -107,7 +115,38 @@ async function extractQRFromImage(buffer: Buffer): Promise<string | null> {
       // try next preprocessing variant
     }
   }
-  return null
+
+  // jsQR found no QR code — try Code 128 barcode (e.g. Fatsoma tickets).
+  return tryZXingCode128(buffer)
+}
+
+async function tryZXingCode128(buffer: Buffer): Promise<string | null> {
+  try {
+    const { data, info } = await sharp(buffer)
+      .resize({ width: 1200, withoutEnlargement: true })
+      .grayscale()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+
+    const hints = new Map<DecodeHintType, unknown>()
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128])
+    hints.set(DecodeHintType.TRY_HARDER, true)
+
+    const reader = new MultiFormatReader()
+    reader.setHints(hints)
+
+    const luminanceSource = new RGBLuminanceSource(
+      new Uint8ClampedArray(data),
+      info.width,
+      info.height,
+    )
+    const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource))
+    const result = reader.decode(binaryBitmap)
+    return result.getText()
+  } catch {
+    // ZXing throws NotFoundException when no barcode is found — treat as null.
+    return null
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
